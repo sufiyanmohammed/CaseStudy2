@@ -1,12 +1,13 @@
 ---
 title: "CaseStudy2"
 output: html_document
+author: Sufiyan Mohammed
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
-
+#adding a lot of libraries but probably won't use all 
 ibrary(tidyverse)
 library(GGally)
 library(naniar)
@@ -26,24 +27,34 @@ setwd("/Users/sufi/Documents/MSDS_6306_Doing-Data-Science-Master/Unit 14 and 15 
 data = read.csv("CaseStudy2-data.csv", header = TRUE)
 head(data)
 
+#removing useless variables
 data2 = data %>% select(-c('ID', 'EmployeeNumber', 'EmployeeCount', 'Over18', 'StandardHours'))
 data2
 
+
+#calculating rate of attrition
 rateofattrition <- sum(data2$Attrition == "Yes")/nrow(data2)
 rateofattrition
 #Average rate of 16%
 
+
+#EDA
 newglm <- glm(data2$Attrition ~ ., family = binomial(link="logit"), data = data2)
 newglm
 
+
+#creating correlations to understand data
 datanumeric <- data2[, sapply(data2,is.integer)]
 correlations <- cor(datanumeric)
 corrplot(correlations, method="circle")
 
 
+#dividing data into factors
 datafactor <- data2 %>%
   mutate_if(sapply(data2, is.character), as.factor)
 
+
+#dividing data into integers
 datainteger <- datafactor %>%
   mutate_if(sapply(datafactor, is.factor), as.integer)
 
@@ -52,14 +63,14 @@ datainteger <- datafactor %>%
 datainteger.cor= cor(datainteger)
 corrplot(datainteger.cor)
 
-### histograms 
+### histograms for viewing datasets for further evaluation
 hist(datafactor$MonthlyIncome)
 
 hist(datafactor$DistanceFromHome)
 
 hist(datafactor$JobSatisfaction)
 
-### plots 
+### plots to understand relationships between attrition and other variables 
 plot(datafactor$Attrition,datafactor$MonthlyIncome)
 
 plot(datafactor$Attrition,datafactor$DistanceFromHome)
@@ -76,29 +87,35 @@ plot(datafactor$Attrition,datafactor$Age, main="Age vs Attrition", xlab="Attriti
 
 plot(datafactor$Attrition,datafactor$Age)
 
+
+#########going to use these plots in the presentation: might change to ggplot to make it better looking later 
 plot(datafactor$MonthlyIncome,datafactor$JobLevel, main="Monthly Income vs Job Level", xlab="Monthly Income", ylab="Job Level")
 plot(datafactor$MonthlyIncome,datafactor$TotalWorkingYears, main="Monthly Income vs Total Working Years", xlab="Monthly Income", ylab="Total Working Years")
 plot(datafactor$MonthlyIncome,datafactor$BusinessTravel, main="Monthly Income vs Business Travel", xlab="Monthly Income", ylab="Business Travel")
 
 
 
-
+#creating train/test
 datapartition = createDataPartition(data$Attrition, times = 1, p = 0.7, list = FALSE)
 train = data[datapartition,]
 test = data[-datapartition,]
 
+
+#testing NB
 NBclassifier=naiveBayes(Attrition~., data=train)
 print(NBclassifier)
 NBclassifier
 
 pred<- predict(NBclassifier, test)
 
+
+#Testing cfm
 cfm <-confusionMatrix((table(pred, test$Attrition)))
 ggplotConfusionMatrix(cfm)
 
 
 ###
-### NaiveBayes Model!
+### NaiveBayes Model! Seeded to determine best seed, takes over a minute to run!
 
 theaccuracy <-  numeric(100)
 thesensitivity  <-  numeric(100)
@@ -129,6 +146,8 @@ theseed
 
 ####
 
+
+### seed 4 is chosen for the actual model below 
 set.seed(4)
 split = 0.75
 
@@ -141,7 +160,7 @@ cfm = confusionMatrix(table(factor(test$Attrition, labels = c("No", "Yes")), pre
 cfm
 plot(cfm)
 
-###
+###Inputing data onto attrition csv
 
 attritioncsv=read.csv("CaseStudy2CompSet No Attrition.csv", header = TRUE)
 
@@ -150,10 +169,12 @@ attritioncsv$newattrition<-predict(model2,attritioncsv[,c("OverTime", "DistanceF
 write_csv(attritioncsv[,c(1,36)], "Case2PredictionsMohammed Attrition.csv")
 
 
-#Regression 
-
+#EDA on a seperate R file, determined job level, working hours, and business travel to be good variables. 
+#overall monthly income
 hist(data2$MonthlyIncome)
 
+
+#general linear model
 linearmodel= lm(MonthlyIncome~JobLevel+TotalWorkingYears+BusinessTravel, data=train)
 summary(linearmodel)
 
@@ -161,14 +182,20 @@ hist(linearmodel$residuals, col = "red", main = "Residual Histogram", xlab="Resi
 plot(linearmodel$fitted.values,linearmodel$residuals, main = "Residuals vs Fitted Values", xlab="Fitted Values", ylab="Residuals")
 abline(a=0, b=0)
 
+
+#predictive model 
 linearmodelprediction<- predict(linearmodel, newdata=test)
 
 plot(linearmodelprediction,test$MonthlyIncome, main="Model Prediction vs Actual Monthly Income", xlab="Model Prediction", ylab="Monthly Income")
 abline(a=0,b=1)
 
+
+###RMSE of 1306
 rmse(test$MonthlyIncome,linearmodelprediction)
 
 summary(linearmodelprediction)
+
+####creating other CSV file
 
 monthlyincomecsv=read.csv("CaseStudy2CompSet No Salary.csv", header=TRUE)
 
@@ -177,6 +204,3 @@ monthlyincomecsv$predictedsalary<-predict(linearmodel,monthlyincomecsv[,c("JobLe
 write_csv(monthlyincomecsv[,c(1,36)], "Case2PredictionsMohammed MonthlySalary.csv")
 
 
-predictedsalary<- predict(linearmodel, newdata= NewSalary)
-
-NewSalary$MonthlyIncome<-predictedsalary
